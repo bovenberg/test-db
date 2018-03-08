@@ -126,3 +126,21 @@ plot(density(all_ppp, sigma = 0.4)) #radius of bubbles is 0.4
 
 ```
 
+
+### Quadrant test for spatial evenness
+
+Are oil spills evenly distributed throughout the state? 
+
+```{r}
+
+oil_qt <- quadrat.test(all_ppp, nx = 5, ny = 5) #arbitrary choice of quadrant amount
+oil_qt
+
+plot(all_ppp)
+plot(oil_qt, add = TRUE, cex = 0.4) # run these two lines together. 
+# the plot shows you what the quadrats are and associated counts
+```
+
+We see a very small p-value. It tests the null hypothesis of CSR. We can reject the null hypothesis. The data is not evenly distributed.
+
+The plot tells us that if this data was truly distributed evenly, then the number of events expected in middle area is 14.5. For partial quadrats it figures out a proportional number of counts. 

@@ -1,0 +1,128 @@
+---
+title: "ESM244 Lab 8: GitHubbing, Spatial Point Pattern Analysis, and PCA"
+author: "Danielle Bovenberg"
+date: "7 March 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##0. Loading packages
+
+```{r packages}
+library(tidyverse)
+library(sf)
+library(tmap)
+library(leaflet)
+library(spatstat)
+library(maptools)
+library(corrplot)
+
+```
+
+##1. About Github
+
+Clone information locally
+edit information
+commit changes
+then upload to github
+The sequence is (1) stage, (2) commit, (3) push. 
+
+
+```{r}
+
+DF <- 
+
+```
+
+
+##2. Making a Leaflet plot of spill locations in Texas in 2016
+
+```{r texas}
+
+oil_spills <- read_csv("oil_spills.csv")
+
+df_loc <- oil_spills %>% 
+  filter(`Accident State` == "TX" & `Accident Year` == 2015) %>% 
+  select(Latitude, Longitude, `Net Loss (Barrels)`)
+
+colnames(df_loc) <- c("latitude", "longitude", "net_loss")
+
+```
+R doesn't yet recognize that this is spacial information. 
+Next, we're going to convert the dataframe into "simple feature"
+
+```{r}
+
+oil_sf <- st_as_sf(df_loc, coords = c("longitude", "latitude"), crs = 4326)
+
+```
+
+The class of oil_sf is now simple features spacial data. You can treat it as a dataframe, but with sticky geometry. it retains the spatial geometry. 
+
+```{r}
+
+leaflet(oil_sf) %>% 
+  addTiles() %>% 
+  addMarkers()
+
+```
+
+## 3. tmap plot with the Texas state shapefile
+Next is point pattern analysis. We need an actual shape file (a bounding window) to do point pattern analysis, not just a leaflet plot. 
+
+First, let's insert a new code chunk to load the files.
+
+```{r}
+
+states <- st_read(dsn = ".", layer = "states") #the layer I want to read in is everything that starts with a prefix called 'states'. 
+
+tex_border <- states %>% 
+  filter(STATE_NAME == "Texas") %>% 
+  st_transform(4326) # assigning a crs (coordinate reference system)
+
+st_crs(tex_border)
+
+plot(tex_border)
+
+tm_shape(tex_border) +
+  tm_polygons() +
+  tm_shape(oil_sf) +
+  tm_dots(size = 0.3)
+
+```
+I can treat "states" as a dataframe, and it will keep the geometry of the poligons. 
+
+I'm only interested in the TX outline.
+
+Does this point pattern follow CSR? Completeley spatially random. 
+
+###3.1 Convert the data to spatial points patterns (combination of point data and the bounding window)
+
+```{r}
+
+spill_sp <- as(oil_sf, "Spatial") #converting from simple features back to data frame
+spill_ppp <- as(spill_sp, "ppp") #ppp for point pattern analysis. 
+class(spill_ppp)
+
+tx_sp <- as(tex_border, "Spatial")
+tx_owin <- as(tx_sp, "owin") # window of observation, of class "owin"
+
+all_ppp <- ppp(spill_ppp$x, spill_ppp$y, window = tx_owin)
+
+```
+
+The function ppp() omits points that don't align for the point pattern and the window that you set. What these last four steps have done, is putting the spatial data in a format that R recognizes as points and window, and then puts it into its brain as one entity. Once you do that, we can use existing pp analysis functions. 
+
+### Kernel density plot
+
+```{r}
+
+plot(density(all_ppp, sigma = 0.4)) #radius of bubbles is 0.4
+# density plots are easy to make and also to manipulate. 
+# pick a meaningful way to decide what sigma (your bandwidth) will be. 
+
+```
+

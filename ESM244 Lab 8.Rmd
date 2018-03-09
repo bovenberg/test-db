@@ -33,7 +33,18 @@ The sequence is (1) stage, (2) commit, (3) push.
 
 ```{r}
 
-DF <- 
+df <- oil_spills %>% 
+  filter(`Accident State` == "TX" & `Accident Year` < 2017) %>% 
+  group_by(`Accident Year`) %>% 
+  summarise(Loss = sum(`Net Loss (Barrels)`))
+
+colnames(df) <- c("Year","Loss")
+
+ggplot(df, aes(x = Year, y = Loss)) +
+  geom_col() +
+  xlab("Year") +
+  ylab("Texas Oil Spill Losses (Barrels)") 
+
 
 ```
 
@@ -141,6 +152,48 @@ plot(oil_qt, add = TRUE, cex = 0.4) # run these two lines together.
 # the plot shows you what the quadrats are and associated counts
 ```
 
-We see a very small p-value. It tests the null hypothesis of CSR. We can reject the null hypothesis. The data is not evenly distributed.
+We see a very small p-value. It tests the null hypothesis of CSR (following a poisson distribution). We can reject the null hypothesis. The data is not evenly distributed.
 
 The plot tells us that if this data was truly distributed evenly, then the number of events expected in middle area is 14.5. For partial quadrats it figures out a proportional number of counts. 
+
+If data is more clustered than CSR, we would expect the nearest neighbors to be closer together, on average. There are two ways to evaluate this. 
+
+What proportion of points have their nearest neighbor within a distance r? Clustered data has a higher proportion. If the distribution is smoother, there is a lower proportion. The g-function looks at this. 
+
+### G-Function for nearest neighbor analysis
+
+Simulate CSR data. 
+
+```{r}
+
+r <- seq(0,1, by = 0.01) # the lag
+
+oil_gfun <- envelope(all_ppp, fun = Gest, r = r, nsim = 100) # for L or K, it's Lest and Kest functions
+
+ggplot(oil_gfun, aes(x = r, y = obs)) +
+  geom_line(color = "black") +
+  geom_line(aes(x = r, y = theo), color = "red")
+
+
+```
+oil_gfun gives you a lag 'r' for each of the values that range from 0 to 1 by 0.1 increments (as we created). For each of those values, the 'observed' column is calculated from our data. 'Theo' is theoretical based on simulations. 
+
+The graph: our observed data has a higher proportion of point pairs with nearest neighbors at shorter distances compared to CSR data. On average, our data points have a nearest neighbor that is closer than we would expect if the data was completely randomly distributed. 
+
+Next, how about concentrations around every point in our dataset? For this, we use the L-function. 
+
+### Nearest neighbor using the L-function (Ripley's K, standardized)
+
+```{r}
+
+r2 <- seq(0, 3, by = 0.5)
+oil_lfun <- envelope(all_ppp, fun = Lest, r = r2, nsim = 20, global = TRUE)
+
+
+ggplot(oil_lfun, aes(x = r2, y = obs)) +
+  geom_line(color = "black") +
+  geom_line(aes(x = r2, y = theo), color = "blue")
+
+```
+Every sinlge point in space and makes increasing bubbles around it until it incorporates all points that exist. 
+
